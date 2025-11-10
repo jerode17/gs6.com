@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GS6 — Landing & QR</title>
+  <style>
+    :root{--accent:#111;--muted:#666;--bg:#ffffff;--card:#f7f7f7;--maxw:900px;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+    body{background:var(--bg);color:var(--accent);margin:0;padding:24px;display:flex;justify-content:center;}
+    .wrap{width:100%;max-width:var(--maxw);}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+    .logo{width:64px;height:64px;border-radius:8px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;overflow:hidden;}
+    .logo img{width:100%;height:100%;object-fit:contain;display:block;}
+    h1{margin:0;font-size:20px;}
+    p.lead{margin:6px 0 14px;color:var(--muted);}
+    .card{background:var(--card);padding:18px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.04);}
+    form.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+    input[type="text"], select{flex:1;padding:10px;border-radius:8px;border:1px solid #e3e3e3;font-size:14px;}
+    input[type="color"]{width:46px;height:46px;border-radius:8px;border:0;padding:0;}
+    button{background:var(--accent);color:#fff;padding:10px 12px;border-radius:8px;border:0;cursor:pointer;}
+    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    #preview{display:flex;align-items:center;justify-content:center;padding:18px;background:#fff;border-radius:8px;margin-top:12px;}
+    .meta{margin-top:12px;color:var(--muted);font-size:13px;}
+    footer{margin-top:18px;color:var(--muted);font-size:13px;}
+    .row-inline{display:flex;gap:8px;align-items:center;}
+    #logoPreview{width:120px;height:80px;border-radius:8px;background:#fff;border:1px dashed #e3e3e3;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+    @media (max-width:600px){header{gap:10px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo" id="brandLogo"><span style="padding:4px">GS6</span></div>
+      <div>
+        <h1 id="brandName">GS6</h1>
+        <p class="lead">Landing simple + générateur de QR code pour étiquettes, packaging et marketing.</p>
+      </div>
+    </header>
+
+    <div class="card">
+      <label style="font-weight:600">URL de destination</label>
+      <form id="form" onsubmit="return false;">
+        <div class="row">
+          <input id="url" type="text" placeholder="https://ton-site-ou-instagram.com/..." value="https://GS6.com" />
+          <button id="genBtn" type="button">Générer le QR</button>
+        </div>
+
+        <div class="row controls">
+          <div class="row-inline">
+            <label title="Taille (px)">Taille</label>
+            <select id="size">
+              <option value="200">200</option>
+              <option value="300" selected>300</option>
+              <option value="450">450</option>
+              <option value="600">600</option>
+            </select>
+          </div>
+
+          <div class="row-inline">
+            <label title="Couleur du QR">Couleur</label>
+            <input id="color" type="color" value="#111111" />
+          </div>
+
+          <div class="row-inline">
+            <label title="Couleur de fond">Fond</label>
+            <input id="bg" type="color" value="#ffffff" />
+          </div>
+
+          <div class="row-inline">
+            <label title="Niveau de correction d'erreur">Erreur</label>
+            <select id="ec">
+              <option value="L">L (7%)</option>
+              <option value="M">M (15%)</option>
+              <option value="Q">Q (25%)</option>
+              <option value="H" selected>H (30%) - recommandé pour logo/print</option>
+            </select>
+          </div>
+
+          <div class="row-inline">
+            <button id="downloadSvg" type="button">Télécharger SVG</button>
+            <button id="downloadPng" type="button">Télécharger PNG</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="font-weight:600">Logo (optionnel)</label>
+            <input id="logoFile" type="file" accept="image/*" />
+            <small style="color:var(--muted)">SVG/PNG/JPG recommandés — si logo central, utilisez erreur H et taille ≤25%.</small>
+          </div>
+          <div id="logoPreview" title="Aperçu du logo">Aperçu</div>
+        </div>
+      </form>
+
+      <div id="preview" aria-live="polite"></div>
+
+      <p class="meta">Conseils impression : SVG = idéal pour l'impression ; taille imprimée recommandée pour étiquette : ≥4 cm. Teste toujours avant impression.</p>
+    </div>
+
+    <footer>
+      <div>Si tu veux que je connecte GS6.com au site, il faudra ajouter les enregistrements DNS chez ton registrar (instructions ci‑dessous).</div>
+    </footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/kjua/0.2.0/kjua.min.js"></script>
+  <script>
+    const preview = document.getElementById('preview');
+    const urlInput = document.getElementById('url');
+    const sizeSel = document.getElementById('size');
+    const colorInp = document.getElementById('color');
+    const bgInp = document.getElementById('bg');
+    const ecSel = document.getElementById('ec');
+    const genBtn = document.getElementById('genBtn');
+    const downloadSvg = document.getElementById('downloadSvg');
+    const downloadPng = document.getElementById('downloadPng');
+    const logoFile = document.getElementById('logoFile');
+    const logoPreview = document.getElementById('logoPreview');
+    const brandLogo = document.getElementById('brandLogo');
+
+    let logoImgElement = null;
+
+    logoFile.addEventListener('change', (ev) => {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result;
+        brandLogo.innerHTML = '';
+        const img = document.createElement('img'); img.src = dataUrl; brandLogo.appendChild(img);
+        logoPreview.innerHTML = '';
+        const pimg = document.createElement('img'); pimg.src = dataUrl; pimg.style.maxWidth='100%'; pimg.style.maxHeight='100%'; logoPreview.appendChild(pimg);
+        logoImgElement = new Image(); logoImgElement.src = dataUrl;
+      };
+      reader.readAsDataURL(f);
+    });
+
+    function generate() {
+      const text = (urlInput.value || '').trim();
+      if (!text) { alert('Merci d’indiquer une URL de destination.'); return; }
+      const size = parseInt(sizeSel.value, 10) || 300;
+      const fill = colorInp.value || '#111';
+      const back = bgInp.value || '#fff';
+      const ec = ecSel.value || 'H';
+      preview.innerHTML = '';
+      const opts = { render:'svg', text, size, fill, back, ecLevel:ec, quiet:1, rounded:0, crisp:true };
+      if (logoImgElement) { opts.image = logoImgElement; opts.mSize = 0.20; opts.mPosX = 0.5; opts.mPosY = 0.5; }
+      const svg = kjua(opts);
+      svg.setAttribute('width', size); svg.setAttribute('height', size);
+      preview.appendChild(svg);
+    }
+
+    function downloadSVGFile() {
+      const svg = preview.querySelector('svg'); if (!svg) { alert('Génère le QR d’abord.'); return; }
+      const serializer = new XMLSerializer(); let svgStr = serializer.serializeToString(svg); svgStr = '<?xml version="1.0" standalone="no"?>\n' + svgStr;
+      const blob = new Blob([svgStr], {type: 'image/svg+xml;charset=utf-8'}); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'gs6-qr.svg'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    function downloadPNGFile() {
+      const svg = preview.querySelector('svg'); if (!svg) { alert('Génère le QR d’abord.'); return; }
+      const serializer = new XMLSerializer(); const svgStr = serializer.serializeToString(svg);
+      const img = new Image(); const svg64 = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+      img.onload = () => {
+        const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (bgInp.value) { ctx.fillStyle = bgInp.value; ctx.fillRect(0,0,canvas.width,canvas.height); }
+        ctx.drawImage(img,0,0);
+        const png = canvas.toDataURL('image/png'); const a = document.createElement('a'); a.href = png; a.download = 'gs6-qr.png'; document.body.appendChild(a); a.click(); a.remove();
+      };
+      img.onerror = () => alert('Erreur génération PNG — essaye le téléchargement SVG.');
+      img.src = svg64;
+    }
+
+    genBtn.addEventListener('click', () => {
+      if (logoImgElement && !logoImgElement.complete) { logoImgElement.onload = generate; logoImgElement.onerror = generate; } else generate();
+    });
+    downloadSvg.addEventListener('click', downloadSVGFile);
+    downloadPng.addEventListener('click', downloadPNGFile);
+    window.addEventListener('load', generate);
+  </script>
+</body>
+</html>
